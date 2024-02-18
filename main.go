@@ -24,6 +24,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/nest"
 	"github.com/AlexxIT/go2rtc/internal/ngrok"
 	"github.com/AlexxIT/go2rtc/internal/onvif"
+	"github.com/AlexxIT/go2rtc/internal/record"
 	"github.com/AlexxIT/go2rtc/internal/roborock"
 	"github.com/AlexxIT/go2rtc/internal/rtmp"
 	"github.com/AlexxIT/go2rtc/internal/rtsp"
@@ -49,6 +50,9 @@ func main() {
 
 	rtsp.Init()   // rtsp source, RTSP server
 	webrtc.Init() // webrtc source, WebRTC server
+
+	// 2.999. Recording
+	record.Init() // record module
 
 	// 3. Main API
 
