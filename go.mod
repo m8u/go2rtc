@@ -3,8 +3,8 @@ module github.com/AlexxIT/go2rtc
 go 1.21
 
 require (
-	github.com/asticode/go-astits v1.13.0
 	github.com/expr-lang/expr v1.15.7
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/gorilla/websocket v1.5.1
 	github.com/miekg/dns v1.1.57
 	github.com/pion/ice/v2 v2.3.11
@@ -20,12 +20,11 @@ require (
 	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f
 	github.com/stretchr/testify v1.8.4
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
-	golang.org/x/crypto v0.17.0
+	golang.org/x/crypto v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/asticode/go-astikit v0.30.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
@@ -41,7 +40,7 @@ require (
 	github.com/pion/turn/v2 v2.1.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
 )

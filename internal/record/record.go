@@ -21,6 +21,8 @@ func Init() {
 		Streams map[string]any `yaml:"streams"`
 	}
 
+	// todo defaults
+
 	app.LoadConfig(&cfg)
 
 	basePath, ok := cfg.Record["basePath"].(string)
@@ -51,7 +53,7 @@ func Init() {
 				go record(name, seg)
 			}
 		default:
-			log.Fatal().Msg("invalid recording configuration")
+			continue
 		}
 	}
 }

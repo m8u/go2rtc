@@ -4,14 +4,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/AlexxIT/go2rtc/pkg/shell"
+	"github.com/AlexxIT/go2rtc/pkg/yaml"
+	"github.com/go-redis/redis"
+	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/AlexxIT/go2rtc/pkg/shell"
-	"github.com/AlexxIT/go2rtc/pkg/yaml"
-	"github.com/rs/zerolog/log"
 )
 
 var Version = "1.8.5"
@@ -74,6 +74,8 @@ func Init() {
 
 	LoadConfig(&cfg)
 
+	go listenRedis()
+
 	log.Logger = NewLogger(cfg.Mod["format"], cfg.Mod["level"])
 
 	modules = cfg.Mod
@@ -105,6 +107,72 @@ func PatchConfig(key string, value any, path ...string) error {
 	}
 
 	return os.WriteFile(ConfigPath, b, 0644)
+}
+
+/*
+	{
+	  "guid": "adsadasd13213",
+	  "url": "rtsp://qwdjqpwdjoqd",
+	  "record": true
+	}
+*/
+func listenRedis() {
+	var cfg struct {
+		Redis map[string]any `yaml:"redis"`
+	}
+	LoadConfig(&cfg)
+
+	addr, _ := cfg.Redis["addr"].(string)
+	password, _ := cfg.Redis["password"].(string)
+	db, _ := cfg.Redis["db"].(int)
+	stream, _ := cfg.Redis["stream"].(string)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: password,
+		DB:       db,
+	})
+
+	for {
+		res, err := rdb.XRead(&redis.XReadArgs{
+			Streams: []string{stream, "$"},
+			Count:   1,
+			Block:   0,
+		}).Result()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to read from config stream")
+			return
+		}
+		id := res[0].Messages[0].ID
+		msg := res[0].Messages[0].Values
+		log.Info().Msgf("new message from config stream: %s", msg)
+
+		guid := msg["guid"].(string)
+		delete(msg, "guid")
+		newCfg := map[string]map[string]map[string]any{
+			"streams": {
+				guid: msg,
+			},
+		}
+		bytes, err := yaml.Encode(newCfg, 2)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to encode yaml:\n%v\n", newCfg)
+			rdb.XDel(stream, id)
+			continue
+		}
+		merged, err := MergeYAML(ConfigPath, bytes)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to merge yaml:\n%s\n", bytes)
+			rdb.XDel(stream, id)
+			continue
+		}
+		if err = os.WriteFile(ConfigPath, merged, 0644); err != nil {
+			log.Error().Err(err).Msg("failed to save config")
+			return
+		}
+
+		rdb.XDel(stream, id)
+	}
 }
 
 // internal
