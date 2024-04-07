@@ -172,6 +172,9 @@ func listenRedis() {
 		}
 
 		rdb.XDel(stream, id)
+
+		log.Info().Msg("successfully updated config, restarting...")
+		go shell.Restart()
 	}
 }
 

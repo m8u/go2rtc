@@ -42,16 +42,14 @@ func Init() {
 	}
 
 	for name, item := range cfg.Streams {
-		switch source := item.(type) {
+		switch item.(type) {
 		case map[string]any:
-			if shouldRecord, _ := source["record"].(bool); shouldRecord {
-				seg, err := NewSegments(segmentDuration, numSegments, fmt.Sprintf("%s/%s", basePath, name))
-				if err != nil {
-					log.Fatal().Err(err).Msg("failed to create segments")
-				}
-				recordings[name] = seg
-				go record(name, seg)
+			seg, err := NewSegments(segmentDuration, numSegments, fmt.Sprintf("%s/%s", basePath, name))
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to create segments")
 			}
+			recordings[name] = seg
+			go record(name, seg)
 		default:
 			continue
 		}
