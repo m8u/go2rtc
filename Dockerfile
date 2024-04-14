@@ -42,7 +42,9 @@ FROM base
 # and other common tools for the echo source.
 # alsa-plugins-pulse for ALSA support (+0MB)
 # font-droid for FFmpeg drawtext filter (+2MB)
-RUN apk add --no-cache tini ffmpeg bash curl jq alsa-plugins-pulse font-droid
+# samba-client for recording to a Samba server (+2.7MB)
+# cifs-utils for mounting Samba folder as network drive (+144KB)
+RUN apk add --no-cache tini ffmpeg bash curl jq alsa-plugins-pulse font-droid samba-client cifs-utils
 
 # Hardware Acceleration for Intel CPU (+50MB)
 ARG TARGETARCH
@@ -56,9 +58,10 @@ RUN if [ "${TARGETARCH}" = "amd64" ]; then apk add --no-cache libva-intel-driver
 
 COPY --from=rootfs / /
 COPY go2rtc.yaml /config/go2rtc.yaml
+COPY start.sh /start.sh
 
 ENTRYPOINT ["/sbin/tini", "--"]
 VOLUME /config
 WORKDIR /config
 
-CMD ["go2rtc", "-config", "/config/go2rtc.yaml"]
+CMD ["/bin/sh", "/start.sh"]
