@@ -133,6 +133,11 @@ func listenRedis() {
 		DB:       db,
 	})
 
+	const (
+		ADD    string = "add"
+		REMOVE        = "remove"
+	)
+
 	for {
 		res, err := rdb.XRead(&redis.XReadArgs{
 			Streams: []string{stream, "$"},
@@ -147,26 +152,42 @@ func listenRedis() {
 		msg := res[0].Messages[0].Values
 		log.Info().Msgf("new message from config stream: %s", msg)
 
+		action := msg["action"].(string)
 		guid := msg["guid"].(string)
-		delete(msg, "guid")
-		newCfg := map[string]map[string]map[string]any{
-			"streams": {
-				guid: msg,
-			},
+
+		var updatedConfigBytes []byte
+		switch action {
+		case ADD:
+			delete(msg, "guid")
+			changes := map[string]map[string]map[string]any{
+				"streams": {
+					guid: msg,
+				},
+			}
+			bytes, err := yaml.Encode(changes, 2)
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to encode yaml:\n%v\n", changes)
+				rdb.XDel(stream, id)
+				continue
+			}
+			updatedConfigBytes, err = MergeYAML(ConfigPath, bytes)
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to merge yaml:\n%s\n", bytes)
+				rdb.XDel(stream, id)
+				continue
+			}
+			break
+		case REMOVE:
+			configBytes, _ := os.ReadFile(ConfigPath)
+			var config map[string]map[string]any
+			_ = yaml.Unmarshal(configBytes, &config)
+			delete(config["streams"], guid)
+			updatedConfigBytes, _ = yaml.Encode(config, 2)
+			break
+		default:
+			break
 		}
-		bytes, err := yaml.Encode(newCfg, 2)
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to encode yaml:\n%v\n", newCfg)
-			rdb.XDel(stream, id)
-			continue
-		}
-		merged, err := MergeYAML(ConfigPath, bytes)
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to merge yaml:\n%s\n", bytes)
-			rdb.XDel(stream, id)
-			continue
-		}
-		if err = os.WriteFile(ConfigPath, merged, 0644); err != nil {
+		if err = os.WriteFile(ConfigPath, updatedConfigBytes, 0644); err != nil {
 			log.Error().Err(err).Msg("failed to save config")
 			return
 		}
