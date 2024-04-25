@@ -1,0 +1,12 @@
+record:
+    basePath: /mnt/recordings
+    numSegments: 5
+    segmentDuration: 10s
+redis:
+    addr: redis:6379
+    db: 0
+    password: ""
+    stream: config
+streams:
+    guid1234aoaokek1337:
+        url: rtsp://stream
