@@ -111,9 +111,10 @@ func PatchConfig(key string, value any, path ...string) error {
 
 /*
 	{
+	  "action": <"add", "remove">,
 	  "guid": "adsadasd13213",
 	  "url": "rtsp://qwdjqpwdjoqd",
-	  "record": true
+	  "device_name": "ул. Восход, 26/1 doorbell"
 	}
 */
 func listenRedis() {
@@ -153,6 +154,7 @@ func listenRedis() {
 		log.Info().Msgf("new message from config stream: %s", msg)
 
 		action := msg["action"].(string)
+		delete(msg, "action")
 		guid := msg["guid"].(string)
 
 		var updatedConfigBytes []byte
