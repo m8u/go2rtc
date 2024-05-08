@@ -6,6 +6,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"github.com/rs/zerolog"
+	"strings"
 	"sync"
 	"time"
 )
@@ -42,9 +43,14 @@ func Init() {
 	}
 
 	for name, item := range cfg.Streams {
-		switch item.(type) {
+		switch item := item.(type) {
 		case map[string]any:
-			seg, err := NewSegments(segmentDuration, numSegments, fmt.Sprintf("%s/%s", basePath, name))
+			deviceName, ok := item["device_name"].(string)
+			if !ok {
+				continue
+			}
+			deviceName = strings.ReplaceAll(deviceName, "/", "-")
+			seg, err := NewSegments(segmentDuration, numSegments, fmt.Sprintf("%s/%s", basePath, deviceName))
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to create segments")
 			}
