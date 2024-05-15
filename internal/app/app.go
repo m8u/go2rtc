@@ -4,14 +4,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/AlexxIT/go2rtc/pkg/shell"
-	"github.com/AlexxIT/go2rtc/pkg/yaml"
-	"github.com/go-redis/redis"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/AlexxIT/go2rtc/pkg/shell"
+	"github.com/AlexxIT/go2rtc/pkg/yaml"
+	"github.com/go-redis/redis"
+	"github.com/rs/zerolog/log"
 )
 
 var Version = "1.8.5"
@@ -136,7 +137,7 @@ func listenRedis() {
 
 	const (
 		ADD    string = "add"
-		REMOVE        = "remove"
+		REMOVE string = "remove"
 	)
 
 	for {
@@ -178,16 +179,13 @@ func listenRedis() {
 				rdb.XDel(stream, id)
 				continue
 			}
-			break
 		case REMOVE:
 			configBytes, _ := os.ReadFile(ConfigPath)
 			var config map[string]map[string]any
 			_ = yaml.Unmarshal(configBytes, &config)
 			delete(config["streams"], guid)
 			updatedConfigBytes, _ = yaml.Encode(config, 2)
-			break
 		default:
-			break
 		}
 		if err = os.WriteFile(ConfigPath, updatedConfigBytes, 0644); err != nil {
 			log.Error().Err(err).Msg("failed to save config")

@@ -2,13 +2,14 @@ package record
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/AlexxIT/go2rtc/internal/app"
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"github.com/rs/zerolog"
-	"strings"
-	"sync"
-	"time"
 )
 
 var log zerolog.Logger
