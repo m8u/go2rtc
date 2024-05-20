@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/AlexxIT/go2rtc/pkg/shell"
 	"github.com/AlexxIT/go2rtc/pkg/yaml"
-	"github.com/go-redis/redis"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
 )
 
@@ -75,7 +76,7 @@ func Init() {
 
 	LoadConfig(&cfg)
 
-	go listenRedis()
+	go listenConfig()
 
 	log.Logger = NewLogger(cfg.Mod["format"], cfg.Mod["level"])
 
@@ -118,51 +119,78 @@ func PatchConfig(key string, value any, path ...string) error {
 	  "device_name": "ул. Восход, 26/1 doorbell"
 	}
 */
-func listenRedis() {
+func listenConfig() {
 	var cfg struct {
-		Redis map[string]any `yaml:"redis"`
+		RabbitMQ map[string]any `yaml:"rabbitmq"`
 	}
 	LoadConfig(&cfg)
+	url, _ := cfg.RabbitMQ["url"].(string)
 
-	addr, _ := cfg.Redis["addr"].(string)
-	password, _ := cfg.Redis["password"].(string)
-	db, _ := cfg.Redis["db"].(int)
-	stream, _ := cfg.Redis["stream"].(string)
+	conn, err := amqp.Dial(url)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to connect to rabbitmq")
+		return
+	}
+	defer conn.Close()
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
-	})
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open amqp channel")
+		return
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare("config", true, false, false, false, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create amqp queue")
+		return
+	}
+	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to start amqp consumer")
+		return
+	}
 
 	const (
 		ADD    string = "add"
 		REMOVE string = "remove"
 	)
-
-	for {
-		res, err := rdb.XRead(&redis.XReadArgs{
-			Streams: []string{stream, "$"},
-			Count:   1,
-			Block:   0,
-		}).Result()
+	for m := range msgs {
+		log.Info().Msgf("new message from config queue: %s", m.Body)
+		var msg map[string]string
+		err = json.Unmarshal(m.Body, &msg)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to read from config stream")
-			return
+			log.Error().Err(err).Msg("invalid JSON")
+			continue
 		}
-		id := res[0].Messages[0].ID
-		msg := res[0].Messages[0].Values
-		log.Info().Msgf("new message from config stream: %s", msg)
 
-		action := msg["action"].(string)
+		action, ok := msg["action"]
+		if !ok {
+			log.Error().Err(err).Msg("stream JSON must specify 'action'")
+			continue
+		}
 		delete(msg, "action")
-		guid := msg["guid"].(string)
+		guid, ok := msg["guid"]
+		if !ok {
+			log.Error().Err(err).Msg("stream JSON must specify 'guid'")
+			continue
+		}
+		_, ok = msg["url"]
+		if !ok {
+			log.Error().Err(err).Msg("stream JSON must specify 'url'")
+			continue
+		}
+		_, ok = msg["device_name"]
+		if !ok {
+			log.Error().Err(err).Msg("stream JSON must specify 'device_name'")
+			continue
+		}
 
 		var updatedConfigBytes []byte
 		switch action {
 		case ADD:
 			delete(msg, "guid")
-			changes := map[string]map[string]map[string]any{
+			changes := map[string]map[string]map[string]string{
 				"streams": {
 					guid: msg,
 				},
@@ -170,13 +198,11 @@ func listenRedis() {
 			bytes, err := yaml.Encode(changes, 2)
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to encode yaml:\n%v\n", changes)
-				rdb.XDel(stream, id)
 				continue
 			}
 			updatedConfigBytes, err = MergeYAML(ConfigPath, bytes)
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to merge yaml:\n%s\n", bytes)
-				rdb.XDel(stream, id)
 				continue
 			}
 		case REMOVE:
@@ -191,8 +217,6 @@ func listenRedis() {
 			log.Error().Err(err).Msg("failed to save config")
 			return
 		}
-
-		rdb.XDel(stream, id)
 
 		log.Info().Msg("successfully updated config, restarting...")
 		go shell.Restart()

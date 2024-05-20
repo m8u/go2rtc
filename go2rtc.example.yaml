@@ -1,12 +1,9 @@
 record:
-    basePath: /mnt/recordings
-    numSegments: 5
-    segmentDuration: 10s
-redis:
-    addr: redis:6379
-    db: 0
-    password: ""
-    stream: config
+  basePath: /mnt/recordings
+  numSegments: 5
+  segmentDuration: 10s
+rabbitmq:
+  url: amqp://guest:guest@rabbitmq:5672/
 streams:
-    guid1234aoaokek1337:
-        url: rtsp://stream
+  guid1234aoaokek1337:
+    url: rtsp://stream
