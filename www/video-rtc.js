@@ -237,8 +237,8 @@ export class VideoRTC extends HTMLElement {
      */
     oninit() {
         this.video = document.createElement('video');
-        this.video.controls = true;
-        this.video.playsInline = true;
+        this.video.controls = false;
+        this.video.playsInline = false;
         this.video.preload = 'auto';
 
         this.video.style.display = 'block'; // fix bottom margin 4px

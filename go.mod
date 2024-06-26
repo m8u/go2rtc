@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/expr-lang/expr v1.15.7
-	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/gorilla/websocket v1.5.1
 	github.com/miekg/dns v1.1.57
 	github.com/pion/ice/v2 v2.3.11
@@ -15,7 +14,8 @@ require (
 	github.com/pion/srtp/v2 v2.0.18
 	github.com/pion/stun v0.6.1
 	github.com/pion/webrtc/v3 v3.2.24
-	github.com/rs/zerolog v1.31.0
+	github.com/rabbitmq/amqp091-go v1.10.0
+	github.com/rs/zerolog v1.33.0
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3
 	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f
 	github.com/stretchr/testify v1.8.4
@@ -25,6 +25,7 @@ require (
 )
 
 require (
+	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
@@ -38,8 +39,9 @@ require (
 	github.com/pion/sctp v1.8.9 // indirect
 	github.com/pion/transport/v2 v2.2.4 // indirect
 	github.com/pion/turn/v2 v2.1.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
+	github.com/rs/xid v1.5.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect

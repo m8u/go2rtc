@@ -83,7 +83,7 @@ func (s *Stream) AddConsumer(cons core.Consumer) (err error) {
 
 	// stop producers if they don't have readers
 	if atomic.AddInt32(&s.requests, -1) == 0 {
-		s.stopProducers()
+		//s.stopProducers()
 	}
 
 	if len(prods) == 0 {
