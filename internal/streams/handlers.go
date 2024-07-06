@@ -3,12 +3,14 @@ package streams
 import (
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/AlexxIT/go2rtc/pkg/core"
 )
 
 type Handler func(url string) (core.Producer, error)
 
+var mu sync.Mutex
 var handlers = map[string]Handler{}
 
 func HandleFunc(scheme string, handler Handler) {
@@ -45,6 +47,8 @@ func GetProducer(url string) (core.Producer, error) {
 			}
 		}
 
+		mu.Lock()
+		defer mu.Unlock()
 		if handler, ok := handlers[scheme]; ok {
 			return handler(url)
 		}

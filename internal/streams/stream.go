@@ -60,7 +60,7 @@ func (s *Stream) RemoveConsumer(cons core.Consumer) {
 	}
 	s.mu.Unlock()
 
-	//s.stopProducers()
+	s.stopProducers()
 }
 
 func (s *Stream) AddProducer(prod core.Producer) {
