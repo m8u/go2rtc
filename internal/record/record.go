@@ -3,12 +3,9 @@ package record
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/AlexxIT/go2rtc/internal/app"
-	"github.com/AlexxIT/go2rtc/internal/streams"
-	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"github.com/rs/zerolog"
 )
 
@@ -43,7 +40,7 @@ func Init() {
 		log.Fatal().Msg("record.numSegments is invalid")
 	}
 
-	for name, item := range cfg.Streams {
+	for streamName, item := range cfg.Streams {
 		switch item := item.(type) {
 		case map[string]any:
 			deviceName, ok := item["device_name"].(string)
@@ -51,44 +48,21 @@ func Init() {
 				continue
 			}
 			deviceName = strings.ReplaceAll(deviceName, "/", "-")
-			seg, err := NewSegments(segmentDuration, numSegments, fmt.Sprintf("%s/%s", basePath, deviceName))
+			seg, err := NewSegments(
+				segmentDuration,
+				numSegments,
+				fmt.Sprintf("%s/%s", basePath, deviceName),
+				streamName,
+			)
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to create segments")
 			}
-			recordings[name] = seg
-			go record(name, seg)
+			recordings[streamName] = seg
+
+			seg.Record()
+			time.Sleep(time.Second * 2) // sleep couple seconds so streams won't switch segments all at the same time
 		default:
 			continue
 		}
 	}
-}
-
-func record(name string, seg *Segments) {
-	stream := streams.Get(name)
-
-	medias := mp4.ParseQuery(map[string][]string{"src": {name}, "mp4": {"all"}})
-	var cons *mp4.Consumer
-	var mu sync.Mutex
-
-	reset := func(i int) {
-		cons = mp4.NewConsumer(medias)
-		if err := stream.AddConsumer(cons); err != nil {
-			log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", name)
-		}
-		mu.Lock()
-		log.Debug().Msgf("writing to segment #%d (%s)", i, name)
-		_, _ = cons.WriteTo(seg)
-
-		stream.RemoveConsumer(cons)
-		mu.Unlock()
-	}
-
-	seg.OnSwitch(func(i int) {
-		_ = cons.Stop()
-		mu.Lock()
-		go reset(i)
-		mu.Unlock()
-	})
-
-	go reset(0)
 }
