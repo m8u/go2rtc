@@ -11,9 +11,10 @@ import (
 
 type Client struct {
 	conn *webrtc.Conn
+	api  *API
 }
 
-func NewClient(rawURL string) (*Client, error) {
+func Dial(rawURL string) (*Client, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
@@ -47,8 +48,10 @@ func NewClient(rawURL string) (*Client, error) {
 	}
 
 	conn := webrtc.NewConn(pc)
-	conn.Desc = "Nest"
+	conn.FormatName = "nest/webrtc"
 	conn.Mode = core.ModeActiveProducer
+	conn.Protocol = "http"
+	conn.URL = rawURL
 
 	// https://developers.google.com/nest/device-access/traits/device/camera-live-stream#generatewebrtcstream-request-fields
 	medias := []*core.Media{
@@ -74,7 +77,7 @@ func NewClient(rawURL string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{conn: conn}, nil
+	return &Client{conn: conn, api: nestAPI}, nil
 }
 
 func (c *Client) GetMedias() []*core.Media {
@@ -90,10 +93,12 @@ func (c *Client) AddTrack(media *core.Media, codec *core.Codec, track *core.Rece
 }
 
 func (c *Client) Start() error {
+	c.api.StartExtendStreamTimer()
 	return c.conn.Start()
 }
 
 func (c *Client) Stop() error {
+	c.api.StopExtendStreamTimer()
 	return c.conn.Stop()
 }
 

@@ -26,6 +26,7 @@ const (
 	StateHandle
 )
 
+// Deprecated: should be rewritten to core.Connection
 type Client struct {
 	core.Listener
 
@@ -46,8 +47,13 @@ type Client struct {
 	recv int
 }
 
-func NewClient(id string) *Client {
-	return &Client{ID: id}
+func Dial(source string) (*Client, error) {
+	id := strings.Replace(source[8:], "/", ":", 1)
+	client := &Client{ID: id}
+	if err := client.Dial(); err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (c *Client) Dial() (err error) {
@@ -132,6 +138,9 @@ func (c *Client) Handle() error {
 		case "stream-init":
 			continue
 
+		case "metadata":
+			continue
+
 		case "fragment":
 			_, data, err = c.conn.ReadMessage()
 			if err != nil {
@@ -183,6 +192,9 @@ func (c *Client) getTracks() error {
 		}
 
 		switch msg.Type {
+		case "metadata":
+			continue
+
 		case "stream-init":
 			s := msg.CodecString
 			i := strings.IndexByte(s, '.')

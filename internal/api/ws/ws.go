@@ -11,7 +11,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/api"
 	"github.com/AlexxIT/go2rtc/internal/app"
 	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 func Init() {
@@ -23,10 +23,14 @@ func Init() {
 
 	app.LoadConfig(&cfg)
 
+	log = app.GetLogger("api")
+
 	initWS(cfg.Mod.Origin)
 
 	api.HandleFunc("api/ws", apiWS)
 }
+
+var log zerolog.Logger
 
 // Message - struct for data exchange in Web API
 type Message struct {
@@ -79,7 +83,7 @@ func initWS(origin string) {
 			if o.Host == r.Host {
 				return true
 			}
-			log.Trace().Msgf("[api.ws] origin=%s, host=%s", o.Host, r.Host)
+			log.Trace().Msgf("[api] ws origin=%s, host=%s", o.Host, r.Host)
 			// https://github.com/AlexxIT/go2rtc/issues/118
 			if i := strings.IndexByte(o.Host, ':'); i > 0 {
 				return o.Host[:i] == r.Host
@@ -123,7 +127,7 @@ func apiWS(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		log.Trace().Str("type", msg.Type).Msg("[api.ws] msg")
+		log.Trace().Str("type", msg.Type).Msg("[api] ws msg")
 
 		if handler := wsHandlers[msg.Type]; handler != nil {
 			go func() {

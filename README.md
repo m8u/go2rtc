@@ -1,9 +1,12 @@
-# go2rtc
+<h1 align="center">
 
-[![](https://img.shields.io/github/stars/AlexxIT/go2rtc?style=flat-square&logo=github)](https://github.com/AlexxIT/go2rtc/stargazers) 
-[![](https://img.shields.io/docker/pulls/alexxit/go2rtc?style=flat-square&logo=docker&logoColor=white&label=pulls)](https://hub.docker.com/r/alexxit/go2rtc) 
-[![](https://img.shields.io/github/downloads/AlexxIT/go2rtc/total?color=blue&style=flat-square&logo=github)](https://github.com/AlexxIT/go2rtc/releases)
-[![](https://goreportcard.com/badge/github.com/AlexxIT/go2rtc)](https://goreportcard.com/report/github.com/AlexxIT/go2rtc)
+  ![go2rtc](assets/logo.gif)
+  <br>
+  [![stars](https://img.shields.io/github/stars/AlexxIT/go2rtc?style=flat-square&logo=github)](https://github.com/AlexxIT/go2rtc/stargazers) 
+  [![docker pulls](https://img.shields.io/docker/pulls/alexxit/go2rtc?style=flat-square&logo=docker&logoColor=white&label=pulls)](https://hub.docker.com/r/alexxit/go2rtc) 
+  [![releases](https://img.shields.io/github/downloads/AlexxIT/go2rtc/total?color=blue&style=flat-square&logo=github)](https://github.com/AlexxIT/go2rtc/releases)
+  [![goreport](https://goreportcard.com/badge/github.com/AlexxIT/go2rtc)](https://goreportcard.com/report/github.com/AlexxIT/go2rtc)
+</h1>
 
 Ultimate camera streaming application with support RTSP, WebRTC, HomeKit, FFmpeg, RTMP, etc.
 
@@ -34,6 +37,7 @@ Ultimate camera streaming application with support RTSP, WebRTC, HomeKit, FFmpeg
 - [GStreamer](https://gstreamer.freedesktop.org/) framework pipeline idea
 - [MediaSoup](https://mediasoup.org/) framework routing idea
 - HomeKit Accessory Protocol from [@brutella](https://github.com/brutella/hap)
+- creator of the project's logo [@v_novoseltsev](https://www.instagram.com/v_novoseltsev) 
 
 ---
 
@@ -127,7 +131,7 @@ Don't forget to fix the rights `chmod +x go2rtc_xxx_xxx` on Linux and Mac.
 
 ### go2rtc: Docker
 
-Container [alexxit/go2rtc](https://hub.docker.com/r/alexxit/go2rtc) with support `amd64`, `386`, `arm64`, `arm`. This container is the same as [Home Assistant Add-on](#go2rtc-home-assistant-add-on), but can be used separately from Home Assistant. Container has preinstalled [FFmpeg](#source-ffmpeg), [ngrok](#module-ngrok) and [Python](#source-echo).
+The Docker container [`alexxit/go2rtc`](https://hub.docker.com/r/alexxit/go2rtc) supports multiple architectures including `amd64`, `386`, `arm64`, and `arm`. This container offers the same functionality as the [Home Assistant Add-on](#go2rtc-home-assistant-add-on) but is designed to operate independently of Home Assistant. It comes preinstalled with [FFmpeg](#source-ffmpeg), [ngrok](#module-ngrok), and [Python](#source-echo).
 
 ### go2rtc: Home Assistant Add-on
 
@@ -146,13 +150,13 @@ Container [alexxit/go2rtc](https://hub.docker.com/r/alexxit/go2rtc) with support
 
 Latest, but maybe unstable version:
 
-- Binary: GitHub > [Actions](https://github.com/AlexxIT/go2rtc/actions) > [Build and Push](https://github.com/AlexxIT/go2rtc/actions/workflows/build.yml) > latest run > Artifacts section (you should be logged in to GitHub)
+- Binary: [latest nightly release](https://nightly.link/AlexxIT/go2rtc/workflows/build/master)
 - Docker: `alexxit/go2rtc:master` or `alexxit/go2rtc:master-hardware` versions
 - Hass Add-on: `go2rtc master` or `go2rtc master hardware` versions
 
 ## Configuration
 
-- by default go2rtc will search `go2rtc.yaml` in the current work dirrectory
+- by default go2rtc will search `go2rtc.yaml` in the current work directory
 - `api` server will start on default **1984 port** (TCP)
 - `rtsp` server will start on default **8554 port** (TCP)
 - `webrtc` will use port **8555** (TCP/UDP) for connections
@@ -213,6 +217,7 @@ Supported for sources:
 - [TP-Link Tapo](#source-tapo) cameras
 - [Hikvision ISAPI](#source-isapi) cameras
 - [Roborock vacuums](#source-roborock) models with cameras
+- [Exec](#source-exec) audio on server
 - [Any Browser](#incoming-browser) as IP-camera
 
 Two way audio can be used in browser with [WebRTC](#module-webrtc) technology. The browser will give access to the microphone only for HTTPS sites ([read more](https://stackoverflow.com/questions/52759992/how-to-access-camera-and-microphone-in-chrome-without-https)).
@@ -230,7 +235,7 @@ streams:
   amcrest_doorbell:
     - rtsp://username:password@192.168.1.123:554/cam/realmonitor?channel=1&subtype=0#backchannel=0
   unifi_camera: rtspx://192.168.1.123:7441/fD6ouM72bWoFijxK
-  glichy_camera: ffmpeg:rstp://username:password@192.168.1.123/live/ch00_1 
+  glichy_camera: ffmpeg:rtsp://username:password@192.168.1.123/live/ch00_1 
 ```
 
 **Recommendations**
@@ -265,7 +270,7 @@ streams:
 
 #### Source: RTMP
 
-You can get stream from RTMP server, for example [Frigate](https://docs.frigate.video/configuration/rtmp).
+You can get stream from RTMP server, for example [Nginx with nginx-rtmp-module](https://github.com/arut/nginx-rtmp-module).
 
 ```yaml
 streams:
@@ -403,20 +408,31 @@ Exec source can run any external application and expect data from it. Two transp
 
 If you want to use **RTSP** transport - the command must contain the `{output}` argument in any place. On launch, it will be replaced by the local address of the RTSP server.
 
-**pipe** reads data from app stdout in different formats: **MJPEG**, **H.264/H.265 bitstream**, **MPEG-TS**.
+**pipe** reads data from app stdout in different formats: **MJPEG**, **H.264/H.265 bitstream**, **MPEG-TS**. Also pipe can write data to app stdin in two formats: **PCMA** and **PCM/48000**.
 
 The source can be used with:
 
 - [FFmpeg](https://ffmpeg.org/) - go2rtc ffmpeg source just a shortcut to exec source
+- [FFplay](https://ffmpeg.org/ffplay.html) - play audio on your server
 - [GStreamer](https://gstreamer.freedesktop.org/)
 - [Raspberry Pi Cameras](https://www.raspberrypi.com/documentation/computers/camera_software.html)
 - any your own software
+
+Pipe commands support parameters (format: `exec:{command}#{param1}#{param2}`):
+
+- `killsignal` - signal which will be send to stop the process (numeric form)
+- `killtimeout` - time in seconds for forced termination with sigkill
+- `backchannel` - enable backchannel for two-way audio
 
 ```yaml
 streams:
   stream: exec:ffmpeg -re -i /media/BigBuckBunny.mp4 -c copy -rtsp_transport tcp -f rtsp {output}
   picam_h264: exec:libcamera-vid -t 0 --inline -o -
   picam_mjpeg: exec:libcamera-vid -t 0 --codec mjpeg -o -
+  pi5cam_h264: exec:libcamera-vid -t 0 --libav-format h264 -o -
+  canon: exec:gphoto2 --capture-movie --stdout#killsignal=2#killtimeout=5
+  play_pcma: exec:ffplay -fflags nobuffer -f alaw -ar 8000 -i -#backchannel=1
+  play_pcm48k: exec:ffplay -fflags nobuffer -f s16be -ar 48000 -i -#backchannel=1
 ```
 
 #### Source: Echo
@@ -537,10 +553,15 @@ echo -n "cloud password" | shasum -a 256 | awk '{print toupper($0)}'
 
 [TP-Link Kasa](https://www.kasasmart.com/) non-standard protocol [more info](https://medium.com/@hu3vjeen/reverse-engineering-tp-link-kc100-bac4641bf1cd).
 
+- `username` - urlsafe email, `alex@gmail.com` -> `alex%40gmail.com`
+- `password` - base64password, `secret1` -> `c2VjcmV0MQ==`
+
 ```yaml
 streams:
-  kasa: kasa://user:pass@192.168.1.123:19443/https/stream/mixed
+  kc401: kasa://username:password@192.168.1.123:19443/https/stream/mixed
 ```
+
+Tested: KD110, KC200, KC401, KC420WS, EC71.
 
 #### Source: GoPro
 
@@ -579,7 +600,7 @@ streams:
 
 Any cameras in WebRTC format are supported. But at the moment Home Assistant only supports some [Nest](https://www.home-assistant.io/integrations/nest/) cameras in this fomat.
 
-The Nest API only allows you to get a link to a stream for 5 minutes. So every 5 minutes the stream will be reconnected.
+**Important.** The Nest API only allows you to get a link to a stream for 5 minutes. Do not use this with Frigate! If the stream expires, Frigate will consume all available ram on your machine within seconds. It's recommended to use [Nest source](#source-nest) - it supports extending the stream.
 
 ```yaml
 streams:
@@ -610,7 +631,7 @@ streams:
 
 *[New in v1.6.0](https://github.com/AlexxIT/go2rtc/releases/tag/v1.6.0)*
 
-Currently only WebRTC cameras are supported. Stream reconnects every 5 minutes.
+Currently only WebRTC cameras are supported.
 
 For simplicity, it is recommended to connect the Nest/WebRTC camera to the [Home Assistant](#source-hass). But if you can somehow get the below parameters - Nest/WebRTC source will work without Hass.
 
@@ -640,7 +661,7 @@ This source type support four connection formats.
 
 **whep**
 
-[WebRTC/WHEP](https://www.ietf.org/id/draft-murillo-whep-02.html) - is an unapproved standard for WebRTC video/audio viewers. But it may already be supported in some third-party software. It is supported in go2rtc.
+[WebRTC/WHEP](https://datatracker.ietf.org/doc/draft-murillo-whep/) - is replaced by [WebRTC/WISH](https://datatracker.ietf.org/doc/charter-ietf-wish/02/) standard for WebRTC video/audio viewers. But it may already be supported in some third-party software. It is supported in go2rtc.
 
 **go2rtc**
 
@@ -758,7 +779,7 @@ POST http://localhost:1984/api/streams?dst=camera1&src=ffmpeg:http://example.com
 You can publish any stream to streaming services (YouTube, Telegram, etc.) via RTMP/RTMPS. Important:
 
 - Supported codecs: H264 for video and AAC for audio
-- Pixel format should be `yuv420p`, for cameras with `yuvj420p` format you SHOULD use [transcoding](#source-ffmpeg)
+- AAC audio is required for YouTube, videos without audio will not work
 - You don't need to enable [RTMP module](#module-rtmp) listening for this task
 
 You can use API:
@@ -771,16 +792,19 @@ Or config file:
 
 ```yaml
 publish:
-  # publish stream "tplink_tapo" to Telegram
-  tplink_tapo: rtmps://xxx-x.rtmp.t.me/s/xxxxxxxxxx:xxxxxxxxxxxxxxxxxxxxxx
-  # publish stream "other_camera" to Telegram and YouTube
-  other_camera:
+  # publish stream "video_audio_transcode" to Telegram
+  video_audio_transcode:
     - rtmps://xxx-x.rtmp.t.me/s/xxxxxxxxxx:xxxxxxxxxxxxxxxxxxxxxx
-    - rtmps://xxx.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx-xxxx
+  # publish stream "audio_transcode" to Telegram and YouTube
+  audio_transcode:
+    - rtmps://xxx-x.rtmp.t.me/s/xxxxxxxxxx:xxxxxxxxxxxxxxxxxxxxxx
+    - rtmp://xxx.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx-xxxx
 
 streams:
-  # for TP-Link cameras it's important to use transcoding because of wrong pixel format
-  tplink_tapo: ffmpeg:rtsp://user:pass@192.168.1.123/stream1#video=h264#hardware#audio=aac
+  video_audio_transcode:
+    - ffmpeg:rtsp://user:pass@192.168.1.123/stream1#video=h264#hardware#audio=aac
+  audio_transcode:
+    - ffmpeg:rtsp://user:pass@192.168.1.123/stream1#video=copy#audio=aac
 ```
 
 - **Telegram Desktop App** > Any public or private channel or group (where you admin) > Live stream > Start with... > Start streaming.
@@ -1172,6 +1196,10 @@ API examples:
   - You can use `rotate` param with `90`, `180`, `270` or `-90` values
   - You can use `hardware`/`hw` param [read more](https://github.com/AlexxIT/go2rtc/wiki/Hardware-acceleration)
 
+**PS.** This module also supports streaming to the server console (terminal) in the **animated ASCII art** format ([read more](https://github.com/AlexxIT/go2rtc/blob/master/internal/mjpeg/README.md)):
+
+[![](https://img.youtube.com/vi/sHj_3h_sX7M/mqdefault.jpg)](https://www.youtube.com/watch?v=sHj_3h_sX7M)
+
 ### Module: Log
 
 You can set different log levels for different modules.
@@ -1352,6 +1380,7 @@ streams:
 **Distributions**
 
 - [Alpine Linux](https://pkgs.alpinelinux.org/packages?name=go2rtc)
+- [Arch User Repository](https://linux-packages.com/aur/package/go2rtc)
 - [Gentoo](https://github.com/inode64/inode64-overlay/tree/main/media-video/go2rtc)
 - [NixOS](https://search.nixos.org/packages?query=go2rtc)
 - [Proxmox Helper Scripts](https://tteck.github.io/Proxmox/)

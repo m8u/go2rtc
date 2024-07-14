@@ -3,6 +3,7 @@ package streams
 import (
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 
 	"github.com/AlexxIT/go2rtc/pkg/core"
 )
@@ -11,7 +12,7 @@ type Stream struct {
 	producers []*Producer
 	consumers []core.Consumer
 	mu        sync.Mutex
-	requests  int32
+	pending   atomic.Int32
 }
 
 func NewStream(source any) *Stream {
@@ -22,8 +23,13 @@ func NewStream(source any) *Stream {
 		}
 	case []any:
 		s := new(Stream)
-		for _, source := range source {
-			s.producers = append(s.producers, NewProducer(source.(string)))
+		for _, src := range source {
+			str, ok := src.(string)
+			if !ok {
+				log.Error().Msgf("[stream] NewStream: Expected string, got %v", src)
+				continue
+			}
+			s.producers = append(s.producers, NewProducer(str))
 		}
 		return s
 	case map[string]any:
@@ -82,6 +88,11 @@ func (s *Stream) RemoveProducer(prod core.Producer) {
 }
 
 func (s *Stream) stopProducers() {
+	if s.pending.Load() > 0 {
+		log.Trace().Msg("[streams] skip stop pending producer")
+		return
+	}
+
 	s.mu.Lock()
 producers:
 	for _, producer := range s.producers {
@@ -101,19 +112,12 @@ producers:
 }
 
 func (s *Stream) MarshalJSON() ([]byte, error) {
-	if !s.mu.TryLock() {
-		log.Warn().Msgf("[streams] json locked")
-		return json.Marshal(nil)
-	}
-
-	var info struct {
+	var info = struct {
 		Producers []*Producer     `json:"producers"`
 		Consumers []core.Consumer `json:"consumers"`
+	}{
+		Producers: s.producers,
+		Consumers: s.consumers,
 	}
-	info.Producers = s.producers
-	info.Consumers = s.consumers
-
-	s.mu.Unlock()
-
 	return json.Marshal(info)
 }

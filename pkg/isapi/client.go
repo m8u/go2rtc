@@ -2,14 +2,16 @@ package isapi
 
 import (
 	"errors"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/tcp"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/AlexxIT/go2rtc/pkg/tcp"
 )
 
+// Deprecated: should be rewritten to core.Connection
 type Client struct {
 	core.Listener
 
@@ -22,7 +24,7 @@ type Client struct {
 	send   int
 }
 
-func NewClient(rawURL string) (*Client, error) {
+func Dial(rawURL string) (*Client, error) {
 	// check if url is valid url
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -32,7 +34,11 @@ func NewClient(rawURL string) (*Client, error) {
 	u.Scheme = "http"
 	u.Path = ""
 
-	return &Client{url: u.String()}, nil
+	client := &Client{url: u.String()}
+	if err = client.Dial(); err != nil {
+		return nil, err
+	}
+	return client, err
 }
 
 func (c *Client) Dial() (err error) {
@@ -84,8 +90,15 @@ func (c *Client) Dial() (err error) {
 }
 
 func (c *Client) Open() (err error) {
-	link := c.url + "/ISAPI/System/TwoWayAudio/channels/" + c.channel
+	// Hikvision ISAPI may not accept a new open request if the previous one was not closed (e.g.
+	// using the test button on-camera or via curl command) but a close request can be sent even if
+	// the audio is already closed. So, we send a close request first and then open it again. Seems
+	// janky but it works.
+	if err = c.Close(); err != nil {
+		return err
+	}
 
+	link := c.url + "/ISAPI/System/TwoWayAudio/channels/" + c.channel
 	req, err := http.NewRequest("PUT", link+"/open", nil)
 	if err != nil {
 		return err
@@ -124,8 +137,8 @@ func (c *Client) Open() (err error) {
 }
 
 func (c *Client) Close() (err error) {
-	link := c.url + "/ISAPI/System/TwoWayAudio/channels/" + c.channel + "/close"
-	req, err := http.NewRequest("PUT", link+"/open", nil)
+	link := c.url + "/ISAPI/System/TwoWayAudio/channels/" + c.channel
+	req, err := http.NewRequest("PUT", link+"/close", nil)
 	if err != nil {
 		return err
 	}

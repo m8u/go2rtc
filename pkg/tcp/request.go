@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/AlexxIT/go2rtc/pkg/core"
 )
 
 // Do - http.Client with support Digest Authorization
@@ -17,11 +19,11 @@ func Do(req *http.Request) (*http.Response, error) {
 
 	switch req.URL.Scheme {
 	case "httpx":
-		secure = &tls.Config{InsecureSkipVerify: true}
+		secure = insecureConfig
 		req.URL.Scheme = "https"
 	case "https":
 		if hostname := req.URL.Hostname(); IsIP(hostname) {
-			secure = &tls.Config{InsecureSkipVerify: true}
+			secure = insecureConfig
 		}
 	}
 
@@ -115,7 +117,7 @@ func Do(req *http.Request) (*http.Response, error) {
 			)
 		case "auth":
 			nc := "00000001"
-			cnonce := "00000001" // TODO: random...
+			cnonce := core.RandString(32, 64)
 			response := HexMD5(ha1, nonce, nc, cnonce, qop, ha2)
 			header = fmt.Sprintf(
 				`Digest username="%s", realm="%s", nonce="%s", uri="%s", qop=%s, nc=%s, cnonce="%s", response="%s"`,
@@ -141,6 +143,22 @@ type key string
 
 var connKey = key("conn")
 var secureKey = key("secure")
+
+var insecureConfig = &tls.Config{
+	InsecureSkipVerify: true,
+	CipherSuites: []uint16{
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+
+		// this cipher suites disabled starting from https://tip.golang.org/doc/go1.22
+		// but cameras can't work without them https://github.com/AlexxIT/go2rtc/issues/1172
+		tls.TLS_RSA_WITH_AES_128_GCM_SHA256, // insecure
+		tls.TLS_RSA_WITH_AES_256_GCM_SHA384, // insecure
+	},
+}
 
 func WithConn() (context.Context, *net.Conn) {
 	pconn := new(net.Conn)
