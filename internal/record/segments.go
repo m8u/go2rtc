@@ -83,16 +83,13 @@ func (s *Segments) switchFile() {
 
 	go func() {
 		_, _ = newCons.WriteTo(newFile) // blocks
+		s.stream.RemoveConsumer(newCons)
 	}()
 
-	if s.cons != nil {
-		time.Sleep(time.Second * 3) // write to prev segment for a few extra seconds just in case
-		_ = s.cons.Stop()
-		s.stream.RemoveConsumer(s.cons) // todo potential gc malfunction here
-	}
 	s.cons = newCons
 
 	if s.files[s.current] != nil {
+		time.Sleep(time.Second * 3) // write to prev segment for a few extra seconds just in case
 		_ = s.files[s.current].Close()
 	}
 	s.current++
