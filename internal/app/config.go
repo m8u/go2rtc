@@ -219,7 +219,7 @@ func ListenConfig() {
 		}
 
 		log.Info().Msg("successfully updated config, restarting...")
-		go shell.Restart()
+		shell.Restart()
 	}
 }
 
