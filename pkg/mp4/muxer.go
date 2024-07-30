@@ -2,7 +2,6 @@ package mp4
 
 import (
 	"encoding/hex"
-
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/h264"
 	"github.com/AlexxIT/go2rtc/pkg/h265"
@@ -11,10 +10,13 @@ import (
 )
 
 type Muxer struct {
-	index  uint32
-	dts    []uint64
-	pts    []uint32
-	codecs []*core.Codec
+	index     uint32
+	dts       []uint64
+	pts       []uint32
+	wroteInit bool
+	codecs    []*core.Codec
+
+	duration uint32
 }
 
 func (m *Muxer) AddTrack(codec *core.Codec) {
@@ -24,7 +26,7 @@ func (m *Muxer) AddTrack(codec *core.Codec) {
 }
 
 func (m *Muxer) GetInit() ([]byte, error) {
-	mv := iso.NewMovie(1024)
+	mv := iso.NewMovie(1024, m.duration)
 	mv.WriteFileType()
 
 	mv.StartAtom(iso.Moov)
@@ -107,6 +109,8 @@ func (m *Muxer) GetInit() ([]byte, error) {
 
 	mv.EndAtom() // MOOV
 
+	m.wroteInit = true
+
 	return mv.Bytes(), nil
 }
 
@@ -114,11 +118,21 @@ func (m *Muxer) Reset() {
 	m.index = 0
 	for i := range m.dts {
 		m.dts[i] = 0
-		m.pts[i] = 0
+		//m.pts[i] = 0 // why reset pts
 	}
+	m.wroteInit = false
 }
 
 func (m *Muxer) GetPayload(trackID byte, packet *rtp.Packet) []byte {
+	// Reset was called, write init
+	if !m.wroteInit {
+		init, err := m.GetInit()
+		if err != nil {
+			panic(err)
+		}
+		return init
+	}
+
 	codec := m.codecs[trackID]
 
 	m.index++
@@ -157,7 +171,7 @@ func (m *Muxer) GetPayload(trackID byte, packet *rtp.Packet) []byte {
 
 	size := len(packet.Payload)
 
-	mv := iso.NewMovie(1024 + size)
+	mv := iso.NewMovie(1024+size, m.duration)
 	mv.WriteMovieFragment(
 		// ExtensionProfile - wrong place for CTS (supported by mpegts.Demuxer)
 		m.index, uint32(trackID+1), duration, uint32(size), flags, m.dts[trackID], uint32(packet.ExtensionProfile),

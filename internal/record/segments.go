@@ -45,30 +45,45 @@ func NewSegments(segmentDuration time.Duration, numSegments int, path string, st
 	return
 }
 
+func (s *Segments) Write(b []byte) (n int, err error) {
+	if ok := s.mu.TryLock(); ok {
+		defer s.mu.Unlock()
+		return s.files[s.current].Write(b)
+	} else {
+		// files are switching, wait and then write to previous
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		prev := s.current - 1
+		if prev == -1 {
+			prev = s.numSegments - 1
+		}
+		return s.files[prev].Write(b)
+	}
+}
+
 func (s *Segments) Record() {
-	go s.switchFile()
+	s.switchFile()
+
+	s.cons = mp4.NewConsumer(s.medias)
+	if err := s.stream.AddConsumer(s.cons); err != nil {
+		log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", s.streamName)
+	}
+	go func() {
+		_, _ = s.cons.WriteTo(s) // blocks
+	}()
+
 	go s.scheduleSwitch()
 }
 
 func (s *Segments) switchFile() {
 	var err error
-	var wg sync.WaitGroup
-
-	newCons := mp4.NewConsumer(s.medias)
-
-	wg.Add(1)
-	go func() {
-		if err := s.stream.AddConsumer(newCons); err != nil {
-			log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", s.streamName)
-		}
-		wg.Done()
-	}()
 
 	now := time.Now()
 	filename := fmt.Sprintf(
 		"%s/%s_%s.mp4",
 		s.path,
-		now.Format(dateFormat), (now.Add(s.segmentDuration)).Format(dateFormat),
+		now.Format(dateFormat),
+		now.Add(s.segmentDuration).Format(dateFormat),
 	)
 	newFile, err := os.OpenFile(
 		filename,
@@ -79,17 +94,9 @@ func (s *Segments) switchFile() {
 		log.Error().Err(err).Msg("failed to open segment file")
 	}
 
-	wg.Wait()
-
-	go func() {
-		_, _ = newCons.WriteTo(newFile) // blocks
-		s.stream.RemoveConsumer(newCons)
-	}()
-
-	s.cons = newCons
+	s.mu.Lock()
 
 	if s.files[s.current] != nil {
-		time.Sleep(time.Second * 3) // write to prev segment for a few extra seconds just in case
 		_ = s.files[s.current].Close()
 	}
 	s.current++
@@ -103,6 +110,12 @@ func (s *Segments) switchFile() {
 		}
 	}
 	s.files[s.current] = newFile
+
+	if s.cons != nil {
+		s.cons.ResetMuxer()
+	}
+
+	s.mu.Unlock()
 }
 
 func (s *Segments) scheduleSwitch() {
