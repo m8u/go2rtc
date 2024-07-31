@@ -1,23 +1,24 @@
 package record
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"os"
-	"sync"
 	"time"
 )
 
 const dateFormat = "2006-01-02_15_04_05"
+
+var mp4MagicNumber = []byte{0, 0, 0, 28, 102, 116, 121, 112}
 
 type Segments struct {
 	segmentDuration time.Duration
 	numSegments     int
 	path            string
 
-	mu      sync.Mutex
 	files   []*os.File
 	current int
 
@@ -46,23 +47,14 @@ func NewSegments(segmentDuration time.Duration, numSegments int, path string, st
 }
 
 func (s *Segments) Write(b []byte) (n int, err error) {
-	if ok := s.mu.TryLock(); ok {
-		defer s.mu.Unlock()
-		return s.files[s.current].Write(b)
-	} else {
-		// files are switching, wait and then write to previous
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		prev := s.current - 1
-		if prev == -1 {
-			prev = s.numSegments - 1
-		}
-		return s.files[prev].Write(b)
+	if bytes.HasPrefix(b, mp4MagicNumber) {
+		s.switchFile()
 	}
+	return s.files[s.current].Write(b)
 }
 
 func (s *Segments) Record() {
-	s.switchFile()
+	s.prepareNextFile()
 
 	s.cons = mp4.NewConsumer(s.medias)
 	if err := s.stream.AddConsumer(s.cons); err != nil {
@@ -72,10 +64,23 @@ func (s *Segments) Record() {
 		_, _ = s.cons.WriteTo(s) // blocks
 	}()
 
-	go s.scheduleSwitch()
+	s.scheduleSwitch()
 }
 
 func (s *Segments) switchFile() {
+	prev := s.current
+	s.current++
+	if s.current == s.numSegments {
+		s.current = 0
+	}
+	go func() {
+		if s.files[prev] != nil {
+			_ = s.files[prev].Close()
+		}
+	}()
+}
+
+func (s *Segments) prepareNextFile() {
 	var err error
 
 	now := time.Now()
@@ -87,39 +92,32 @@ func (s *Segments) switchFile() {
 	)
 	newFile, err := os.OpenFile(
 		filename,
-		os.O_CREATE|os.O_WRONLY,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to open segment file")
+		log.Error().Err(err).Msg("failed to open new segment file")
 	}
 
-	s.mu.Lock()
-
-	if s.files[s.current] != nil {
-		_ = s.files[s.current].Close()
+	next := s.current + 1
+	if next == s.numSegments {
+		next = 0
 	}
-	s.current++
-	if s.current == s.numSegments {
-		s.current = 0
+	if s.files[next] != nil {
+		oldFilename := s.files[next].Name()
+		go func() {
+			err = os.Remove(oldFilename)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to remove old segment file")
+			}
+		}()
 	}
-	if s.files[s.current] != nil {
-		err = os.Remove(s.files[s.current].Name())
-		if err != nil {
-			log.Error().Err(err).Msg("failed to remove segment file")
-		}
-	}
-	s.files[s.current] = newFile
-
-	if s.cons != nil {
-		s.cons.ResetMuxer()
-	}
-
-	s.mu.Unlock()
+	s.files[next] = newFile
 }
 
 func (s *Segments) scheduleSwitch() {
 	for range time.NewTicker(s.segmentDuration).C {
-		go s.switchFile()
+		s.prepareNextFile()
+		s.cons.ResetMuxer() // trigger the muxer to send mp4 magic number
 	}
 }

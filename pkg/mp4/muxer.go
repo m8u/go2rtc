@@ -7,6 +7,7 @@ import (
 	"github.com/AlexxIT/go2rtc/pkg/h265"
 	"github.com/AlexxIT/go2rtc/pkg/iso"
 	"github.com/pion/rtp"
+	"sync"
 )
 
 type Muxer struct {
@@ -17,6 +18,8 @@ type Muxer struct {
 	codecs    []*core.Codec
 
 	duration uint32
+
+	mu sync.Mutex
 }
 
 func (m *Muxer) AddTrack(codec *core.Codec) {
@@ -115,25 +118,26 @@ func (m *Muxer) GetInit() ([]byte, error) {
 }
 
 func (m *Muxer) Reset() {
+	for {
+		if m.mu.TryLock() {
+			break
+		}
+	}
+
 	m.index = 0
 	for i := range m.dts {
 		m.dts[i] = 0
 		//m.pts[i] = 0 // why reset pts
 	}
 	m.wroteInit = false
+
+	m.mu.Unlock()
 }
 
 func (m *Muxer) GetPayload(trackID byte, packet *rtp.Packet) []byte {
-	// Reset was called, write init
-	if !m.wroteInit {
-		init, err := m.GetInit()
-		if err != nil {
-			panic(err)
-		}
-		return init
-	}
-
 	codec := m.codecs[trackID]
+
+	m.mu.Lock()
 
 	m.index++
 
@@ -182,5 +186,18 @@ func (m *Muxer) GetPayload(trackID byte, packet *rtp.Packet) []byte {
 
 	m.dts[trackID] += uint64(duration)
 
-	return mv.Bytes()
+	payload := mv.Bytes()
+
+	// Reset was called, prepend init
+	if !m.wroteInit {
+		init, err := m.GetInit()
+		if err != nil {
+			panic(err)
+		}
+		payload = append(init, payload...)
+	}
+
+	m.mu.Unlock()
+
+	return payload
 }
