@@ -1,0 +1,16 @@
+stages:
+  - build
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - ssh root@localhost "cd $(pwd) && docker build . -t smart-operator-$CI_PROJECT_NAME:latest"
+    - echo "Build complete."
+
+deploy-job:
+  stage: deploy
+  when: manual
+  script:
+    - ssh root@localhost "cd $COMPOSE_PROJECT_PATH && docker compose -f $COMPOSE_FILE up $CI_PROJECT_NAME --force-recreate -d"
+    - echo "Application successfully deployed."
