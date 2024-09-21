@@ -59,7 +59,7 @@ RUN if [ "${TARGETARCH}" = "amd64" ]; then apk add --no-cache libva-intel-driver
 # RUN libva-vdpau-driver mesa-vdpau-gallium (+150MB total)
 
 COPY --from=rootfs / /
-COPY go2rtc.yaml /config/go2rtc.yaml
+COPY go2rtc.example.yaml /config/go2rtc.yaml
 COPY start.sh /start.sh
 
 ENTRYPOINT ["/sbin/tini", "--"]
