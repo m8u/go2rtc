@@ -2,15 +2,15 @@ package mp4
 
 import (
 	"errors"
-	"io"
-	"sync"
-
 	"github.com/AlexxIT/go2rtc/pkg/aac"
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/h264"
 	"github.com/AlexxIT/go2rtc/pkg/h265"
 	"github.com/AlexxIT/go2rtc/pkg/pcm"
 	"github.com/pion/rtp"
+	"io"
+	"sync"
+	"time"
 )
 
 type Consumer struct {
@@ -58,6 +58,12 @@ func NewConsumer(medias []*core.Media) *Consumer {
 		muxer: &Muxer{},
 		wr:    wr,
 	}
+}
+
+func NewWithDuration(medias []*core.Media, duration time.Duration) *Consumer {
+	cons := NewConsumer(medias)
+	cons.muxer.duration = uint32(duration.Milliseconds())
+	return cons
 }
 
 func (c *Consumer) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiver) error {
@@ -186,4 +192,14 @@ func (c *Consumer) WriteTo(wr io.Writer) (int64, error) {
 	}
 
 	return c.wr.WriteTo(wr)
+}
+
+func (c *Consumer) ResetMuxer() {
+	c.muxer.Reset()
+}
+
+func (c *Consumer) GetLastDtsDuration() time.Duration {
+	trackID := len(c.muxer.dts) - 1
+	seconds := float64(c.muxer.dts[trackID]) / float64(c.muxer.codecs[trackID].ClockRate)
+	return time.Duration(seconds * float64(time.Second))
 }

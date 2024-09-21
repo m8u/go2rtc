@@ -59,7 +59,7 @@ func Init() {
 			}
 			recordings[streamName] = seg
 
-			seg.Record()
+			go seg.Record()
 			time.Sleep(time.Second * 2) // sleep couple seconds so streams won't switch segments all at the same time
 		default:
 			continue

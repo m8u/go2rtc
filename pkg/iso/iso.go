@@ -6,12 +6,13 @@ import (
 )
 
 type Movie struct {
-	b     []byte
-	start []int
+	b        []byte
+	start    []int
+	duration uint32
 }
 
-func NewMovie(size int) *Movie {
-	return &Movie{b: make([]byte, 0, size)}
+func NewMovie(size int, duration uint32) *Movie {
+	return &Movie{b: make([]byte, 0, size), duration: duration}
 }
 
 func (m *Movie) Bytes() []byte {

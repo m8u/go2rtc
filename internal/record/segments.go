@@ -1,23 +1,24 @@
 package record
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"os"
-	"sync"
 	"time"
 )
 
 const dateFormat = "2006-01-02_15_04_05"
+
+var mp4MagicNumber = []byte{0, 0, 0, 28, 102, 116, 121, 112}
 
 type Segments struct {
 	segmentDuration time.Duration
 	numSegments     int
 	path            string
 
-	mu      sync.Mutex
 	files   []*os.File
 	current int
 
@@ -45,68 +46,78 @@ func NewSegments(segmentDuration time.Duration, numSegments int, path string, st
 	return
 }
 
+func (s *Segments) Write(b []byte) (n int, err error) {
+	if bytes.HasPrefix(b, mp4MagicNumber) {
+		s.switchFile()
+	}
+	return s.files[s.current].Write(b)
+}
+
 func (s *Segments) Record() {
-	go s.switchFile()
-	go s.scheduleSwitch()
+	s.prepareNextFile()
+
+	s.cons = mp4.NewConsumer(s.medias)
+	if err := s.stream.AddConsumer(s.cons); err != nil {
+		log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", s.streamName)
+	}
+	go func() {
+		_, _ = s.cons.WriteTo(s) // blocks
+	}()
+
+	s.scheduleSwitch()
 }
 
 func (s *Segments) switchFile() {
-	var err error
-	var wg sync.WaitGroup
-
-	newCons := mp4.NewConsumer(s.medias)
-
-	wg.Add(1)
+	prev := s.current
+	s.current++
+	if s.current == s.numSegments {
+		s.current = 0
+	}
 	go func() {
-		if err := s.stream.AddConsumer(newCons); err != nil {
-			log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", s.streamName)
+		if s.files[prev] != nil {
+			_ = s.files[prev].Close()
 		}
-		wg.Done()
 	}()
+}
+
+func (s *Segments) prepareNextFile() {
+	var err error
 
 	now := time.Now()
 	filename := fmt.Sprintf(
 		"%s/%s_%s.mp4",
 		s.path,
-		now.Format(dateFormat), (now.Add(s.segmentDuration)).Format(dateFormat),
+		now.Format(dateFormat),
+		now.Add(s.segmentDuration).Format(dateFormat),
 	)
 	newFile, err := os.OpenFile(
 		filename,
-		os.O_CREATE|os.O_WRONLY,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to open segment file")
+		log.Error().Err(err).Msg("failed to open new segment file")
 	}
 
-	wg.Wait()
-
-	go func() {
-		_, _ = newCons.WriteTo(newFile) // blocks
-		s.stream.RemoveConsumer(newCons)
-	}()
-
-	s.cons = newCons
-
-	if s.files[s.current] != nil {
-		time.Sleep(time.Second * 3) // write to prev segment for a few extra seconds just in case
-		_ = s.files[s.current].Close()
+	next := s.current + 1
+	if next == s.numSegments {
+		next = 0
 	}
-	s.current++
-	if s.current == s.numSegments {
-		s.current = 0
+	if s.files[next] != nil {
+		oldFilename := s.files[next].Name()
+		go func() {
+			err = os.Remove(oldFilename)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to remove old segment file")
+			}
+		}()
 	}
-	if s.files[s.current] != nil {
-		err = os.Remove(s.files[s.current].Name())
-		if err != nil {
-			log.Error().Err(err).Msg("failed to remove segment file")
-		}
-	}
-	s.files[s.current] = newFile
+	s.files[next] = newFile
 }
 
 func (s *Segments) scheduleSwitch() {
 	for range time.NewTicker(s.segmentDuration).C {
-		go s.switchFile()
+		s.prepareNextFile()
+		s.cons.ResetMuxer() // trigger the muxer to send mp4 magic number
 	}
 }
