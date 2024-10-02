@@ -48,7 +48,7 @@ func Init() {
 				continue
 			}
 			deviceName = strings.ReplaceAll(deviceName, "/", "-")
-			gateAddress := strings.Split(" (", deviceName)[0] // встретимся как попадется адрес со скобками
+			gateAddress := strings.Split(deviceName, " (")[0] // встретимся как попадется адрес со скобками
 			seg, err := NewSegments(
 				segmentDuration,
 				numSegments,
