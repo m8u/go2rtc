@@ -48,10 +48,11 @@ func Init() {
 				continue
 			}
 			deviceName = strings.ReplaceAll(deviceName, "/", "-")
+			gateAddress := strings.Split(" (", deviceName)[0] // встретимся как попадется адрес со скобками
 			seg, err := NewSegments(
 				segmentDuration,
 				numSegments,
-				fmt.Sprintf("%s/%s", basePath, deviceName),
+				fmt.Sprintf("%s/%s/%s", basePath, gateAddress, deviceName),
 				streamName,
 			)
 			if err != nil {
