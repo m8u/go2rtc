@@ -3,11 +3,14 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 
 	"github.com/AlexxIT/go2rtc/pkg/shell"
 	"github.com/AlexxIT/go2rtc/pkg/yaml"
@@ -155,7 +158,27 @@ func ListenConfig() {
 		ADD    string = "add"
 		REMOVE string = "remove"
 	)
+	var restartCountdown atomic.Int32
+	restartCountdown.Store(-1)
 	for m := range msgs {
+		if restartCountdown.Load() == -1 {
+			// first message, start counting down to restart
+			restartCountdown.Store(10)
+			go func() {
+				ticker := time.NewTicker(time.Second)
+				for range ticker.C {
+					restartCountdown.Add(-1)
+					if restartCountdown.Load() == 0 {
+						log.Info().Msg("no more messages, restarting...")
+						shell.Restart()
+					}
+				}
+			}()
+		} else {
+			// another message, reset countdown
+			restartCountdown.Store(10)
+		}
+
 		log.Info().Msgf("new message from config queue: %s", m.Body)
 		var msg map[string]string
 		err = json.Unmarshal(m.Body, &msg)
@@ -217,9 +240,6 @@ func ListenConfig() {
 			log.Error().Err(err).Msg("failed to save config")
 			return
 		}
-
-		log.Info().Msg("successfully updated config, restarting...")
-		shell.Restart()
 	}
 }
 
