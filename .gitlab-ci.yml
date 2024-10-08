@@ -4,6 +4,9 @@ stages:
 
 build-job:
   stage: build
+  only:
+    - master
+    - nightly
   script:
     - ssh root@localhost "cd $(pwd) && docker build . -t smart-operator-$CI_PROJECT_NAME:latest"
     - echo "Build complete."
