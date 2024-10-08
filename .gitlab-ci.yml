@@ -13,6 +13,9 @@ build-job:
 
 deploy-job:
   stage: deploy
+  only:
+    - master
+    - nightly
   when: manual
   script:
     - ssh root@localhost "cd $COMPOSE_PROJECT_PATH && docker compose -f $COMPOSE_FILE up $CI_PROJECT_NAME --force-recreate -d"
