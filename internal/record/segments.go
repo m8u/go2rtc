@@ -3,11 +3,13 @@ package record
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
-	"os"
-	"time"
 )
 
 const dateFormat = "2006-01-02_15_04_05"
@@ -85,7 +87,7 @@ func (s *Segments) prepareNextFile() {
 
 	now := time.Now()
 	filename := fmt.Sprintf(
-		"%s/%s_%s.mp4",
+		"%s/.%s_%s_raw.mp4",
 		s.path,
 		now.Format(dateFormat),
 		now.Add(s.segmentDuration).Format(dateFormat),
@@ -104,7 +106,8 @@ func (s *Segments) prepareNextFile() {
 		next = 0
 	}
 	if s.files[next] != nil {
-		oldFilename := s.files[next].Name()
+		// file may be finalized by some cronjob, so look for clean filename
+		oldFilename := strings.Replace(strings.TrimPrefix(s.files[next].Name(), "."), "_raw.mp4", ".mp4", 1)
 		go func() {
 			err = os.Remove(oldFilename)
 			if err != nil {
