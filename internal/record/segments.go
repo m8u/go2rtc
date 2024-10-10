@@ -107,7 +107,7 @@ func (s *Segments) prepareNextFile() {
 	}
 	if s.files[next] != nil {
 		// file may be finalized by some cronjob, so look for clean filename
-		oldFilename := strings.Replace(strings.TrimPrefix(s.files[next].Name(), "."), "_raw.mp4", ".mp4", 1)
+		oldFilename := strings.Replace(strings.Replace(s.files[next].Name(), "/.", "/", 1), "_raw.mp4", ".mp4", 1)
 		go func() {
 			err = os.Remove(oldFilename)
 			if err != nil {
