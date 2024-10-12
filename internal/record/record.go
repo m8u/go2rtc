@@ -35,6 +35,12 @@ func Init() {
 		log.Fatal().Msg("record.segmentDuration is invalid")
 	}
 
+	timezoneStr, ok := cfg.Record["timezone"].(string)
+	timezone, err := time.LoadLocation(timezoneStr)
+	if !ok || err != nil {
+		log.Fatal().Msg("record.timezone is invalid")
+	}
+
 	numSegments, ok := cfg.Record["numSegments"].(int)
 	if !ok {
 		log.Fatal().Msg("record.numSegments is invalid")
@@ -53,6 +59,7 @@ func Init() {
 				segmentDuration,
 				numSegments,
 				fmt.Sprintf("%s/%s/%s", basePath, gateAddress, deviceName),
+				timezone,
 				streamName,
 			)
 			if err != nil {

@@ -2,8 +2,10 @@ record:
   basePath: /mnt/recordings
   numSegments: 5
   segmentDuration: 10s
+  timezone: Asia/Novosibirsk
 rabbitmq:
   url: amqp://guest:guest@rabbitmq:5672/
 streams:
   guid1234aoaokek1337:
-    url: rtsp://stream
+    device_name: Восход, 26/1 (выз.  панель)
+    url: rtsp://stream:554

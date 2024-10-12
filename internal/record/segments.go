@@ -20,6 +20,7 @@ type Segments struct {
 	segmentDuration time.Duration
 	numSegments     int
 	path            string
+	filenameTZ      *time.Location
 
 	files   []*os.File
 	current int
@@ -30,11 +31,15 @@ type Segments struct {
 	cons       *mp4.Consumer
 }
 
-func NewSegments(segmentDuration time.Duration, numSegments int, path string, streamName string) (segments *Segments, err error) {
+func NewSegments(
+	segmentDuration time.Duration, numSegments int,
+	path string, filenameTZ *time.Location, streamName string,
+) (segments *Segments, err error) {
 	segments = &Segments{
 		segmentDuration: segmentDuration,
 		numSegments:     numSegments,
 		path:            path,
+		filenameTZ:      filenameTZ,
 		files:           make([]*os.File, numSegments),
 		streamName:      streamName,
 		stream:          streams.Get(streamName),
@@ -85,7 +90,7 @@ func (s *Segments) switchFile() {
 func (s *Segments) prepareNextFile() {
 	var err error
 
-	now := time.Now()
+	now := time.Now().In(s.filenameTZ)
 	filename := fmt.Sprintf(
 		"%s/.%s_%s_raw.mp4",
 		s.path,
