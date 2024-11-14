@@ -2,12 +2,19 @@ package streams
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/AlexxIT/go2rtc/pkg/core"
 )
 
+const CONSUMERS_PER_STREAM_LIMIT = 3
+
 func (s *Stream) AddConsumer(cons core.Consumer) (err error) {
+	if len(s.consumers) >= CONSUMERS_PER_STREAM_LIMIT {
+		return fmt.Errorf("reached limit of consumers per stream (<= %d)", CONSUMERS_PER_STREAM_LIMIT)
+	}
+
 	// support for multiple simultaneous pending from different consumers
 	consN := s.pending.Add(1) - 1
 
