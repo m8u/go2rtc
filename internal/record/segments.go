@@ -64,8 +64,14 @@ func (s *Segments) Record() {
 	s.prepareNextFile()
 
 	s.cons = mp4.NewConsumer(s.medias)
-	if err := s.stream.AddConsumer(s.cons); err != nil {
-		log.Error().Err(err).Msgf("failed to add a recording consumer (%s)", s.streamName)
+
+	for {
+		err := s.stream.AddConsumer(s.cons)
+		if err == nil {
+			break
+		}
+		log.Error().Err(err).Msgf("failed to add a recording consumer (%s), retrying...", s.streamName)
+		time.Sleep(30 * time.Second)
 	}
 	go func() {
 		_, _ = s.cons.WriteTo(s) // blocks

@@ -5,6 +5,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/api/ws"
 	"github.com/AlexxIT/go2rtc/internal/app"
 	"github.com/AlexxIT/go2rtc/internal/bubble"
+	"github.com/AlexxIT/go2rtc/internal/cronjobs"
 	"github.com/AlexxIT/go2rtc/internal/debug"
 	"github.com/AlexxIT/go2rtc/internal/dvrip"
 	"github.com/AlexxIT/go2rtc/internal/echo"
@@ -53,8 +54,9 @@ func main() {
 	rtsp.Init()   // rtsp source, RTSP server
 	webrtc.Init() // webrtc source, WebRTC server
 
-	// 2.999. Recording
-	record.Init() // record module
+	// 2.999. Smart-Operator
+	record.Init()   // record module
+	cronjobs.Init() // cron jobs
 
 	// 3. Main API
 
