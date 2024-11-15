@@ -3,6 +3,7 @@ record:
   numSegments: 5
   segmentDuration: 10s
   timezone: Asia/Novosibirsk
+  finalizeScriptPath: /scripts/ffmpeg_finalize.py
 rabbitmq:
   url: amqp://guest:guest@rabbitmq:5672/
 streams:
